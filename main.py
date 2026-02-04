@@ -6,12 +6,18 @@ from flask import Flask
 from threading import Thread
 
 # --- Token from Replit Secrets ---
-TOKEN = os.environ["TOKEN"]
+TOKEN = os.environ.get("TOKEN")
+if not TOKEN:
+    print(
+        "ERROR: TOKEN environment variable not set. Please add your Discord bot token to secrets."
+    )
+    exit(1)
 
 # --- IDs ---
 ROLE_ID = 1414914863498788875  # Rekt Citizen role ID
 CHANNEL_1_ID = 1456173014931603456  # Server 1 channel
-CHANNEL_2_ID = 1429879717284151398  # Server 2 channel
+CHANNEL_2_ID = 1468649165109203177  # Server 2 channel
+#1429879717284151398
 
 # --- Intents ---
 intents = discord.Intents.default()
@@ -22,26 +28,33 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # --- Keep-alive server for Replit ---
 app = Flask('')
 
+
 @app.route('/')
 def home():
     return "Bot is alive!"
 
+
 def run():
-    app.run(host='0.0.0.0', port=8080)
+    app.run(host='0.0.0.0', port=5000)
+
 
 def keep_alive():
     t = Thread(target=run)
     t.start()
+
 
 # --- Events & Commands ---
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
 
+
 # Kick command with confirmation + rate-limit handling
 @bot.command()
 async def kickrekt(ctx):
-    await ctx.send("⚠️ Are you sure you want to mass‑kick all members with the Rekt Citizen role? Type `yes` to confirm.")
+    await ctx.send(
+        "⚠️ Are you sure you want to mass‑kick all members with the Rekt Citizen role? Type `yes` to confirm."
+    )
 
     def check(m):
         return m.author == ctx.author and m.content.lower() == "yes"
@@ -66,32 +79,35 @@ async def kickrekt(ctx):
     except asyncio.TimeoutError:
         await ctx.send("Kick cancelled (no confirmation received).")
 
+
 # Relay messages + attachments bi-directionally
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
         return
 
-    # Relay Channel 1 → Channel 2
-    if message.channel.id == CHANNEL_1_ID:
-        target_channel = bot.get_channel(CHANNEL_2_ID)
+    # Relay Server 1 → Server 2
+    if message.channel.id == SOURCE_CHANNEL_ID:
+        target_channel = bot.get_channel(TARGET_CHANNEL_ID)
         if target_channel:
             if message.content:
-                await target_channel.send(f"[Server1] {message.author}: {message.content}")
+                await target_channel.send(
+                    f"[Server1] {message.author}: {message.content}")
             for attachment in message.attachments:
                 await target_channel.send(file=await attachment.to_file())
 
-    # Relay Channel 2 → Channel 1
-    elif message.channel.id == CHANNEL_2_ID:
-        target_channel = bot.get_channel(CHANNEL_1_ID)
-        if target_channel:
+    # Relay Server 2 → Server 1
+    elif message.channel.id == TARGET_CHANNEL_ID:
+        source_channel = bot.get_channel(SOURCE_CHANNEL_ID)
+        if source_channel:
             if message.content:
-                await target_channel.send(f"[Server2] {message.author}: {message.content}")
+                await source_channel.send(
+                    f"[Server2] {message.author}: {message.content}")
             for attachment in message.attachments:
-                await target_channel.send(file=await attachment.to_file())
+                await source_channel.send(file=await attachment.to_file())
 
-    # Keep commands working
     await bot.process_commands(message)
+
 
 # --- Run bot ---
 keep_alive()
