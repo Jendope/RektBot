@@ -1,113 +1,87 @@
 import os
 import discord
+import yaml
 from discord.ext import commands
-import asyncio
 from flask import Flask
 from threading import Thread
+from dotenv import load_dotenv
 
-# --- Token from Replit Secrets ---
+# --- Load environment variables ---
+load_dotenv()
 TOKEN = os.environ.get("TOKEN")
 if not TOKEN:
-    print(
-        "ERROR: TOKEN environment variable not set. Please add your Discord bot token to secrets."
-    )
+    print("ERROR: TOKEN environment variable not set.")
     exit(1)
 
-# --- IDs ---
-ROLE_ID = 1414914863498788875  # Rekt Citizen role ID
-CHANNEL_1_ID = 1456173014931603456  # Server 1 channel
-CHANNEL_2_ID = 1468649165109203177  # Server 2 channel
-#1429879717284151398
+# --- Load relay config ---
+with open("relay_config.yml") as f:
+    config = yaml.safe_load(f)
 
-# --- Intents ---
+# Build SOURCES automatically from pairs (bi-directional)
+SOURCES = {}
+for a, b in config.get("pairs", []):
+    SOURCES.setdefault(int(a), []).append(int(b))
+    SOURCES.setdefault(int(b), []).append(int(a))
+
+RECEIVERS = [int(x) for x in config.get("receivers", [])]
+ALLOWED_USERS = [int(x) for x in config.get("allowed_users", [])]
+
+# --- Discord bot setup ---
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# --- Keep-alive server for Replit ---
+# --- Keep-alive server (optional) ---
 app = Flask('')
-
 
 @app.route('/')
 def home():
     return "Bot is alive!"
 
-
 def run():
-    app.run(host='0.0.0.0', port=5000)
-
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
 
 def keep_alive():
     t = Thread(target=run)
     t.start()
 
-
-# --- Events & Commands ---
+# --- Events ---
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
 
-
-# Kick command with confirmation + rate-limit handling
-@bot.command()
-async def kickrekt(ctx):
-    await ctx.send(
-        "⚠️ Are you sure you want to mass‑kick all members with the Rekt Citizen role? Type `yes` to confirm."
-    )
-
-    def check(m):
-        return m.author == ctx.author and m.content.lower() == "yes"
-
-    try:
-        await bot.wait_for("message", check=check, timeout=30.0)
-        role = ctx.guild.get_role(ROLE_ID)
-        if not role:
-            await ctx.send("Role not found.")
-            return
-
-        kicked = 0
-        for member in role.members:
-            try:
-                await member.kick(reason="Has Rekt Citizen role")
-                kicked += 1
-                await asyncio.sleep(1)  # delay to avoid rate limits
-            except Exception as e:
-                print(f"Failed to kick {member}: {e}")
-
-        await ctx.send(f"Kicked {kicked} members with role Rekt Citizen.")
-    except asyncio.TimeoutError:
-        await ctx.send("Kick cancelled (no confirmation received).")
-
-
-# Relay messages + attachments bi-directionally
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
         return
 
-    # Relay Server 1 → Server 2
-    if message.channel.id == SOURCE_CHANNEL_ID:
-        target_channel = bot.get_channel(TARGET_CHANNEL_ID)
+    # Only relay if author is in ALLOWED_USERS
+    if message.author.id not in ALLOWED_USERS:
+        return
+
+    # Relay based on SOURCES mapping
+    targets = SOURCES.get(message.channel.id, [])
+    for target_id in targets:
+        target_channel = bot.get_channel(target_id)
         if target_channel:
             if message.content:
-                await target_channel.send(
-                    f"[Server1] {message.author}: {message.content}")
+                await target_channel.send(message.content)
             for attachment in message.attachments:
                 await target_channel.send(file=await attachment.to_file())
 
-    # Relay Server 2 → Server 1
-    elif message.channel.id == TARGET_CHANNEL_ID:
-        source_channel = bot.get_channel(SOURCE_CHANNEL_ID)
-        if source_channel:
-            if message.content:
-                await source_channel.send(
-                    f"[Server2] {message.author}: {message.content}")
-            for attachment in message.attachments:
-                await source_channel.send(file=await attachment.to_file())
+    # Always forward to RECEIVERS (Triad + future servers)
+    if message.channel.id in SOURCES:  # only relay if source is LN, AI, or TestServer
+        for recv_id in RECEIVERS:
+            target_channel = bot.get_channel(recv_id)
+            if target_channel:
+                if message.content:
+                    await target_channel.send(message.content)
+                for attachment in message.attachments:
+                    await target_channel.send(file=await attachment.to_file())
 
     await bot.process_commands(message)
-
 
 # --- Run bot ---
 keep_alive()

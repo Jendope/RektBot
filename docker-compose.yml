@@ -1,0 +1,9 @@
+services:
+  shnncryptbot:
+    build: .
+    container_name: shnncrypt-bot
+    restart: always
+    env_file: .env
+    volumes:
+      - ./relay_config.yml:/app/relay_config.yml:ro
+      - ./:/app   # mount entire project folder
