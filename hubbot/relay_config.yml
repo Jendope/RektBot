@@ -1,0 +1,7 @@
+receivers:
+  - 1468498093115969566   # Triad
+  - 1468649165109203177   # TestServer
+
+allowed_users:
+  - 404287153213014038     # shnnn
+  - 433607960493555722     # James

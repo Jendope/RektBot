@@ -1,0 +1,6 @@
+services:
+  hubbot:
+    build: ./hubbot
+    container_name: hub-bot
+    restart: always
+    env_file: ./hubbot/.env
