@@ -12,7 +12,7 @@ TOKEN = os.environ.get("DISCORD_TOKEN")
 with open("relay_config.yml") as f:
     config = yaml.safe_load(f)
 
-AI_CHANNEL_ID = 1429879717284151398   # AI hub channel
+AI_CHANNEL_ID = 1456173014931603456   # AI hub channel
 RECEIVERS = [int(x) for x in config.get("receivers", [])]
 ALLOWED_USERS = [int(x) for x in config.get("allowed_users", [])]
 

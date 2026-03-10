@@ -1,5 +1,6 @@
 receivers:
   - 1468498093115969566   # Triad
+  - 1451456977145434292   # Nexus
   - 1468649165109203177   # TestServer
 
 allowed_users:
