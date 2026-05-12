@@ -1,14 +1,17 @@
-pairs:
-  - [1456173014931603456, 1429879717284151398]   # LN ↔ AI
-  #- [1456173014931603456, 1422925057339953182]   # LN ↔ AI
-  
-  - [1456173014931603456, 1468649165109203177]   # LN ↔ TestServer
-  #- [1429879717284151398, 1468649165109203177]   # AI ↔ TestServer
+source_channels:
+  - 1456173014931603456   # LN source channel where AI bot / Shann / James post
+  # - 1429879717284151398 # AI channel - disabled because bot no longer has access
+  # - 1422925057339953182 # Optional AI/source channel - disabled
 
 receivers:
   - 1468498093115969566   # Triad
-  #- 1468649165109203177   # TestServer
+  - 1468649165109203177   # TestServer
 
-allowed_users:
-  - 404287153213014038     # shnnn
-  - 433607960493555722     # James
+allowed_senders:
+  - 404287153213014038    # shnnn
+  - 433607960493555722    # James
+  - 1481167252844707840   # AI forwarder bot
+
+add_header: false
+copy_embeds: true
+disable_mentions: true
